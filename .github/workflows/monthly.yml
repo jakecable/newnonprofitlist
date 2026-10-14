@@ -1,0 +1,115 @@
+name: Monthly update
+
+on:
+  schedule:
+    - cron: "17 14 16 * *"   # 16th of each month, 9:17 am Central. The IRS posts its update around the 2nd week.
+  workflow_dispatch:
+    inputs:
+      send_to:
+        description: "Who gets an email: nobody, one (the address below), or everyone"
+        type: choice
+        options: [nobody, one, everyone]
+        default: nobody
+      only_email:
+        description: "Email address for 'one' (must already be in the SUBSCRIBERS secret)"
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+  deployments: write
+
+concurrency:
+  group: monthly
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      CF_PROJECT: newnonprofitlist   # Cloudflare Pages project name
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Work out release labels
+        id: rel
+        run: |
+          rel=$(date -u +%Y-%m)
+          echo "release=$rel" >> "$GITHUB_OUTPUT"
+          prev=$(ls data/processed 2>/dev/null | grep -E '^[0-9]{4}-[0-9]{2}$' | grep -v "^$rel$" | sort | tail -1 || true)
+          echo "prev=$prev" >> "$GITHUB_OUTPUT"
+
+      - name: Install the word list used to clean up IRS names
+        run: pip install --quiet english-words==2.0.2
+
+      - name: Download IRS files
+        run: cd pipeline && python fetch.py --release ${{ steps.rel.outputs.release }}
+
+      - name: Build lists
+        run: cd pipeline && python build.py --release ${{ steps.rel.outputs.release }} --prev "${{ steps.rel.outputs.prev }}"
+
+      - name: Build website
+        run: python site/build_site.py --release ${{ steps.rel.outputs.release }}
+
+      - name: Make this month's social media kit (charts + captions)
+        run: |
+          pip install --quiet matplotlib
+          cd pipeline && python social.py --release ${{ steps.rel.outputs.release }}
+
+      - name: Keep the social kit (download from this run's page)
+        uses: actions/upload-artifact@v4
+        with:
+          name: social-${{ steps.rel.outputs.release }}
+          path: data/social/${{ steps.rel.outputs.release }}
+          retention-days: 90
+
+      - name: Email everyone (scheduled run, or manual run with 'everyone')
+        if: github.event_name == 'schedule' || inputs.send_to == 'everyone'
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+          SUBSCRIBERS: ${{ secrets.SUBSCRIBERS }}
+        run: cd pipeline && python deliver.py --release ${{ steps.rel.outputs.release }}
+
+      - name: Email one new customer
+        if: github.event_name == 'workflow_dispatch' && inputs.send_to == 'one'
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+          SUBSCRIBERS: ${{ secrets.SUBSCRIBERS }}
+        run: cd pipeline && python deliver.py --release ${{ steps.rel.outputs.release }} --only "${{ inputs.only_email }}"
+
+      - name: Keep the paid CSVs for 90 days (private; download from this run's page)
+        uses: actions/upload-artifact@v4
+        with:
+          name: lists-${{ steps.rel.outputs.release }}
+          path: data/deliverables/${{ steps.rel.outputs.release }}
+          retention-days: 90
+
+      - name: Save this month's summary (no addresses) for next month's comparison
+        run: |
+          git config user.name "newnonprofitlist-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/processed
+          git commit -m "Data release ${{ steps.rel.outputs.release }}" || echo "nothing to commit"
+          git push
+
+      - name: Create the Cloudflare Pages project (first run only; fails harmlessly after)
+        continue-on-error: true
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages project create ${{ env.CF_PROJECT }} --production-branch=main
+
+      - name: Publish the website to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy public --project-name=${{ env.CF_PROJECT }} --branch=main
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}

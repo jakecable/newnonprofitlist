@@ -1,0 +1,6 @@
+data/raw/
+data/deliverables/
+public/
+__pycache__/
+*.part
+data/social/
