@@ -83,7 +83,8 @@ def main():
             open(out, "wb").write(bytes(m))
             print(f"[preview] wrote {out}"); continue
         req = urllib.request.Request("https://api.resend.com/emails", data=json.dumps(payload).encode(),
-                                     headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
+                                     headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json",
+                                              "User-Agent": "newnonprofitlist-delivery/1.0 (+https://newnonprofitlist.com)"})
         try:
             urllib.request.urlopen(req, timeout=60).read()
             print(f"sent {email}: {fname}")
