@@ -100,14 +100,6 @@ jobs:
           git commit -m "Data release ${{ steps.rel.outputs.release }}" || echo "nothing to commit"
           git push
 
-      - name: Create the Cloudflare Pages project (first run only; fails harmlessly after)
-        continue-on-error: true
-        uses: cloudflare/wrangler-action@v4
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages project create ${{ env.CF_PROJECT }} --production-branch=main
-
       - name: Publish the website to Cloudflare Pages
         uses: cloudflare/wrangler-action@v4
         with:
