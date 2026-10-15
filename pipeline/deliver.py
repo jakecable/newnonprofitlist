@@ -10,7 +10,13 @@ Environment variables (set as GitHub Actions secrets):
 Usage: python pipeline/deliver.py --release 2026-10 [--only someone@firm.com] [--dry-run]
   --only sends to just that subscriber (use it the day a new customer pays).
 """
-import argparse, base64, json, os, sys, urllib.request
+import argparse, base64, json, os, sys, urllib.error, urllib.request
+
+
+def fail(msg):
+    """Exit with a message that also shows as an error annotation on the GitHub run page."""
+    print(f"::error title=Email delivery::{msg}")
+    sys.exit(msg)
 from config import STATES, SITE_NAME, SITE_URL, CONTACT_EMAIL, CUSTOMER_PORTAL
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -28,11 +34,11 @@ def main():
     if a.only:
         subs = [l for l in subs if l.split(",")[0].strip().lower() == a.only.strip().lower()]
         if not subs:
-            sys.exit(f"{a.only} is not in SUBSCRIBERS. Add the line 'email,STATE' to the secret first.")
+            fail(f"{a.only} is not in SUBSCRIBERS ({len([l for l in os.environ.get('SUBSCRIBERS','').splitlines() if l.strip()])} line(s) found). Each line must be: email,STATE")
     if not subs:
         print("No subscribers configured; nothing to send."); return
     if not (key and sender) and not (a.dry_run or a.preview):
-        sys.exit("RESEND_API_KEY and FROM_EMAIL are required to send.")
+        fail("Missing secret(s): " + ", ".join(n for n, v in (("RESEND_API_KEY", key), ("FROM_EMAIL", sender)) if not v))
     summary = json.load(open(os.path.join(ROOT, "data", "processed", a.release, "summary.json")))
     ddir = os.path.join(ROOT, "data", "deliverables", a.release)
     failures = 0
@@ -42,7 +48,7 @@ def main():
         fname = "ALL.csv" if plan == "ALL" else f"{plan}.csv"
         path = os.path.join(ddir, fname)
         if not os.path.exists(path):
-            print(f"skip {email}: no file {fname}"); continue
+            print(f"::warning title=Email delivery::Skipped {email}: no list for plan '{plan}' (use a 2-letter state code or ALL)"); continue
         area = "all states" if plan == "ALL" else STATES.get(plan, plan)
         count = summary["national"]["count"] if plan == "ALL" else summary["states"].get(plan, {}).get("count", 0)
         months = f"{summary['recent_labels'][0]} – {summary['recent_labels'][-1]}"
@@ -81,9 +87,13 @@ def main():
         try:
             urllib.request.urlopen(req, timeout=60).read()
             print(f"sent {email}: {fname}")
+        except urllib.error.HTTPError as ex:
+            failures += 1
+            body = ex.read().decode(errors="replace")[:300]
+            print(f"::error title=Email delivery::Resend refused the email to {email}: HTTP {ex.code} {body}")
         except Exception as ex:
             failures += 1
-            print(f"FAILED {email}: {ex}", file=sys.stderr)
+            print(f"::error title=Email delivery::Sending to {email} failed: {ex}")
     if failures:
         sys.exit(1)
 
