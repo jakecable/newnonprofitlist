@@ -10,7 +10,7 @@ CHECKOUT = {
     "national": "https://buy.stripe.com/7sY6oJeDb56w03vaSqgrS01",   # $99/month, all states
 }
 WAITLIST_FORM = "https://tally.so/r/WJ92MP"    # Tally form URL for early access (used while CHECKOUT is empty)
-CUSTOMER_PORTAL = ""  # Stripe customer portal login link, for customers to cancel or update cards
+CUSTOMER_PORTAL = "https://billing.stripe.com/p/login/aFafZj9iR2Yo17z0dMgrS00"  # Stripe customer portal login link, for customers to cancel or update cards
 
 IRS_BASE = "https://www.irs.gov/pub/irs-soi/eo_{code}.csv"
 
