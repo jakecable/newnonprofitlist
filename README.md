@@ -29,7 +29,7 @@ See **LAUNCH_GUIDE.md** for the full step-by-step. In short:
 4. Run the *Monthly update* workflow.
 5. Add Tally, Stripe and Resend.
 
-The secrets for email delivery are `RESEND_API_KEY`, `FROM_EMAIL` and `SUBSCRIBERS`.
+The secrets for email delivery are `RESEND_API_KEY`, `FROM_EMAIL` and `STRIPE_API_KEY` (subscribers are read from Stripe; the welcome workflow emails new ones hourly). `SUBSCRIBERS` is optional, for free extras.
 
 ## Data notes
 

@@ -1,0 +1,51 @@
+name: Welcome new subscribers
+
+# Every hour: look in Stripe for subscriptions that haven't received a list yet.
+# Usually finds nobody and finishes in under a minute. When someone new has subscribed,
+# it rebuilds this month's lists and emails them theirs.
+on:
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: monthly
+  cancel-in-progress: false
+
+jobs:
+  welcome:
+    runs-on: ubuntu-latest
+    env:
+      STRIPE_API_KEY: ${{ secrets.STRIPE_API_KEY }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Anyone new in Stripe?
+        id: check
+        run: cd pipeline && python deliver.py --mode check
+
+      - name: Work out which release to send
+        if: steps.check.outputs.has_new == 'true'
+        id: rel
+        run: echo "release=$(ls data/processed | grep -E '^[0-9]{4}-[0-9]{2}$' | sort | tail -1)" >> "$GITHUB_OUTPUT"
+
+      - name: Rebuild this month's lists
+        if: steps.check.outputs.has_new == 'true'
+        run: |
+          pip install --quiet english-words==2.0.2
+          cd pipeline
+          python fetch.py --release ${{ steps.rel.outputs.release }}
+          python build.py --release ${{ steps.rel.outputs.release }}
+
+      - name: Email new subscribers their first list
+        if: steps.check.outputs.has_new == 'true'
+        run: cd pipeline && python deliver.py --release ${{ steps.rel.outputs.release }} --mode new

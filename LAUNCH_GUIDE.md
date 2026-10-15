@@ -299,16 +299,24 @@ GitHub never shows a secret again after you save it. **Keep the master list in a
 
 ## 9. Your routines
 
-### When someone pays (5 minutes)
+### When someone pays: nothing to do
 
-1. Stripe emails you about the payment. Open it in Stripe → **Payments** → the payment → note their **email** and the **state** they typed.
-2. Add `their@email.com,TX` to your master list. Repo → Settings → Secrets → `SUBSCRIBERS` → **Update** → paste the full list → Save.
-3. Actions → **Run workflow** → send_to = **one**, only_email = their email. They get this month's list right away.
-4. Reply to Stripe's receipt or email them yourself: *"Your Texas list is in your inbox. What will you use it for?"* Their answer tells you which buyer type to market to next.
+Customer lists come straight from Stripe (this needs the `STRIPE_API_KEY` secret; see below).
+- **New subscriber:** within about an hour, the **Welcome new subscribers** workflow finds them, reads the state they typed at checkout, and emails them their first list. Free-trial customers count.
+- **Cancellation:** they drop out automatically and stop getting emails.
+- **Typo in the state** (for example "Texs"): you get one email at hello@ that says who it is and how to fix it.
+- It's still worth replying to Stripe's "new payment" email with a short thank-you: *"Your Texas list is in your inbox. What will you use it for?"* Their answer tells you which buyer type to market to next.
 
-### When someone cancels
+**The SUBSCRIBERS secret** is now only for free extras: you, testers, or anyone you comp. Format: `email,STATE` or `email,ALL`, one per line.
 
-Stripe emails you. Remove their line from the master list and update the secret. Ask them in one line why they cancelled.
+**Stripe key setup (one time, 3 minutes):**
+1. Stripe → **Developers** → **API keys** → **Create restricted key** → name it `github-delivery`.
+2. Set these permissions; leave everything else as **None**:
+   - **Subscriptions:** Write
+   - **Customers:** Read
+   - **Checkout Sessions:** Read
+   - **Products:** Read
+3. Click **Create key**, copy it (it starts with `rk_live_`), and add it as the GitHub secret `STRIPE_API_KEY`.
 
 ### On the 16th of each month (2 minutes)
 
@@ -468,7 +476,7 @@ $1,000/month is about 35 state subscriptions, or about 10 all-states customers, 
 | Send a new customer their list | Run workflow → send_to = one, only_email = their address |
 | Download this month's paid files | Actions → latest run → Artifacts → `lists-YYYY-MM` |
 | Download this month's social kit | Actions → latest run → Artifacts → `social-YYYY-MM` |
-| Add or remove a customer | Settings → Secrets → `SUBSCRIBERS` (paste the full master list) |
+| Add or remove a customer | Automatic from Stripe; `SUBSCRIBERS` secret only for free extras |
 | Change prices or links | `pipeline/config.py` → commit → Run workflow |
 | See who paid / cancelled | Stripe Dashboard → Payments / Subscriptions |
 | See Google traffic | Search Console → Performance |

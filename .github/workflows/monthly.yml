@@ -11,7 +11,7 @@ on:
         options: [nobody, one, everyone]
         default: nobody
       only_email:
-        description: "Email address for 'one' (must already be in the SUBSCRIBERS secret)"
+        description: "Email address for 'one' (a Stripe subscriber or a line in the SUBSCRIBERS secret)"
         type: string
         default: ""
 
@@ -73,7 +73,8 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
           SUBSCRIBERS: ${{ secrets.SUBSCRIBERS }}
-        run: cd pipeline && python deliver.py --release ${{ steps.rel.outputs.release }}
+          STRIPE_API_KEY: ${{ secrets.STRIPE_API_KEY }}
+        run: cd pipeline && python deliver.py --release ${{ steps.rel.outputs.release }} --mode all
 
       - name: Email one new customer
         if: github.event_name == 'workflow_dispatch' && inputs.send_to == 'one'
@@ -81,7 +82,8 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
           SUBSCRIBERS: ${{ secrets.SUBSCRIBERS }}
-        run: cd pipeline && python deliver.py --release ${{ steps.rel.outputs.release }} --only "${{ inputs.only_email }}"
+          STRIPE_API_KEY: ${{ secrets.STRIPE_API_KEY }}
+        run: cd pipeline && python deliver.py --release ${{ steps.rel.outputs.release }} --mode all --only "${{ inputs.only_email }}"
 
       - name: Keep the paid CSVs for 90 days (private; download from this run's page)
         uses: actions/upload-artifact@v4
