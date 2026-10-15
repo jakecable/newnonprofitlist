@@ -6,8 +6,8 @@ CONTACT_EMAIL = "hello@newnonprofitlist.com"  # an inbox you read (Cloudflare Em
 
 # Stripe Payment Links (Stripe Dashboard -> Payment Links). Empty = buttons go to the early-access form.
 CHECKOUT = {
-    "state": "",      # $29/month, one state (custom text field "Which state?")
-    "national": "",   # $99/month, all states
+    "state": "https://buy.stripe.com/aFafZj9iR2Yo17z0dMgrS00",      # $29/month, one state (custom text field "Which state?")
+    "national": "https://buy.stripe.com/7sY6oJeDb56w03vaSqgrS01",   # $99/month, all states
 }
 WAITLIST_FORM = "https://tally.so/r/WJ92MP"    # Tally form URL for early access (used while CHECKOUT is empty)
 CUSTOMER_PORTAL = ""  # Stripe customer portal login link, for customers to cancel or update cards
