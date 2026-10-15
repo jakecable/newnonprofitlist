@@ -1,0 +1,26 @@
+name: Check 990-N contact coverage (one-off)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Release label
+        id: rel
+        run: echo "release=$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+      - run: pip install --quiet english-words==2.0.2
+      - name: Download IRS files
+        run: cd pipeline && python fetch.py --release ${{ steps.rel.outputs.release }}
+      - name: Build lists
+        run: cd pipeline && python build.py --release ${{ steps.rel.outputs.release }}
+      - name: Match against 990-N e-Postcard filings
+        run: cd pipeline && python check_990n.py --release ${{ steps.rel.outputs.release }}
