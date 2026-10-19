@@ -1,0 +1,20 @@
+name: City sample (one-off)
+on:
+  workflow_dispatch:
+    inputs:
+      state: {type: string, default: TX}
+      city: {type: string, default: San Antonio}
+permissions:
+  contents: read
+jobs:
+  sample:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet english-words==2.0.2
+      - run: cd pipeline && python fetch.py --release sample --states ${{ inputs.state }}
+      - run: cd pipeline && python build.py --release sample
+      - run: python pipeline/sample_city.py sample ${{ inputs.state }} "${{ inputs.city }}" 20
